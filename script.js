@@ -1,4 +1,4 @@
-const margin = { top: 20, right: 30, bottom: 40, left: 80 }; // Increased left margin
+const margin = { top: 20, right: 150, bottom: 40, left: 80 }; // Increased right margin for legend
 const width = 960 - margin.left - margin.right;
 const height = 500 - margin.top - margin.bottom;
 
@@ -42,11 +42,47 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
     svg.append("g")
       .call(d3.axisLeft(y));
 
+    const countryData = countries.map(country => filteredData.filter(d => d.country === country));
+
     svg.selectAll(".line")
-      .data(countries.map(country => filteredData.filter(d => d.country === country)))
+      .data(countryData)
       .enter().append("path")
       .attr("class", "line")
       .attr("d", line)
       .style("stroke", d => color(d[0].country));
+
+    // Legend Panel
+    const legendPanel = svg.append("g")
+      .attr("transform", `translate(${width + 10}, 0)`);
+
+    legendPanel.append("rect")
+      .attr("x", -10)
+      .attr("y", 0)
+      .attr("width", 130)
+      .attr("height", countries.length * 20 + 10)
+      .attr("fill", "white")
+      .attr("stroke", "#ccc")
+      .attr("rx", 5)
+      .attr("ry", 5);
+
+    // Legend Items
+    const legend = legendPanel.selectAll(".legend")
+      .data(countries)
+      .enter().append("g")
+      .attr("class", "legend")
+      .attr("transform", (d, i) => `translate(0,${i * 20 + 5})`);
+
+    legend.append("rect")
+      .attr("x", 0)
+      .attr("width", 12)
+      .attr("height", 12)
+      .style("fill", color);
+
+    legend.append("text")
+      .attr("x", 20)
+      .attr("y", 6)
+      .attr("dy", ".35em")
+      .style("text-anchor", "start")
+      .text(d => d);
   })
   .catch(error => console.error(error));
