@@ -1,4 +1,4 @@
-const margin = { top: 20, right: 150, bottom: 40, left: 80 }; // Increased right margin for legend
+const margin = { top: 20, right: 150, bottom: 40, left: 80 };
 const width = 960 - margin.left - margin.right;
 const height = 500 - margin.top - margin.bottom;
 
@@ -17,59 +17,151 @@ const svg = d3.select("#chart").append("svg")
   .append("g")
   .attr("transform", `translate(${margin.left},${margin.top})`);
 
+// Important dates related to COVID-19 policies
+const importantDates = {
+  "US": [
+    { date: "03/13/20", event: "National Emergency Declaration" },
+    { date: "04/03/20", event: "CDC Recommends Masks" },
+    { date: "12/11/20", event: "Pfizer Vaccine EUA" }
+  ],
+  "China": [
+    { date: "01/23/20", event: "Wuhan Lockdown" },
+    { date: "04/08/20", event: "Wuhan Reopens" },
+    { date: "12/31/20", event: "Vaccination Rollout" }
+  ],
+  "Japan": [
+    { date: "04/07/20", event: "State of Emergency" },
+    { date: "05/25/20", event: "End of State of Emergency" },
+    { date: "12/14/20", event: "Vaccination Approval" }
+  ]
+};
+
 d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
   .then(data => {
     const countries = ["US", "China", "Japan"];
-    const filteredData = data.filter(d => countries.includes(d.country));
+    let filteredData = data.filter(d => countries.includes(d.country));
 
     filteredData.forEach(d => {
       d.date = parseDate(d.date);
       d.cases = +d.cases;
     });
 
-    // Sort the data by date
-    filteredData.sort((a, b) => a.date - b.date);
-
-    x.domain(d3.extent(filteredData, d => d.date));
-    y.domain([0, d3.max(filteredData, d => d.cases)]);
+    filteredData = filteredData.sort((a, b) => a.date - b.date);
 
     const color = d3.scaleOrdinal(d3.schemeCategory10).domain(countries);
+    let selectedCountry = null;
 
-    svg.append("g")
-      .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x));
+    function updateChart(data, importantEvents = []) {
+        data.sort((a, b) => a.date - b.date);
+      
+        x.domain(d3.extent(data, d => d.date));
+        y.domain([0, d3.max(data, d => d.cases)]);
+      
+        svg.selectAll(".x-axis").remove();
+        svg.selectAll(".y-axis").remove();
+        svg.append("g")
+          .attr("transform", `translate(0,${height})`)
+          .attr("class", "x-axis")
+          .call(d3.axisBottom(x));
+        svg.append("g")
+          .attr("class", "y-axis")
+          .call(d3.axisLeft(y));
+      
+        const lines = svg.selectAll(".line")
+          .data(countries.map(country => data.filter(d => d.country === country)));
+      
+        lines.enter().append("path")
+          .attr("class", "line")
+          .merge(lines)
+          .attr("d", line)
+          .style("stroke", d => d.length ? color(d[0].country) : null)
+          .style("opacity", d => (selectedCountry === null || (d.length && selectedCountry === d[0].country)) ? 0.6 : 0)
+          .style("stroke-width", 15)
+          .attr("data-country", d => d.length ? d[0].country : null);
+      
+        lines.exit().remove();
+      
+        svg.selectAll(".line")
+          .on("mouseover", function() {
+            if (selectedCountry === null) {
+              d3.select(this)
+                .transition()
+                .duration(200)
+                .style("opacity", 1);
+            }
+          })
+          .on("mouseout", function() {
+            if (selectedCountry === null) {
+              d3.select(this)
+                .transition()
+                .duration(200)
+                .style("opacity", 0.6);
+            }
+          })
+          .on("click", function(event, d) {
+            if (selectedCountry === d[0].country) {
+              resetChart();
+            } else {
+              drillDown(d[0].country);
+            }
+          });
+      
+        // Remove existing circles
+        svg.selectAll(".important-circle").remove();
+      
+        // Draw circles for important dates if any
+        if (selectedCountry !== null && importantEvents.length > 0) {
+          const circles = svg.selectAll(".important-circle")
+            .data(importantEvents.map(e => ({
+              date: parseDate(e.date),
+              cases: data.find(d => d.date.getTime() === parseDate(e.date).getTime())?.cases || 0,
+              event: e.event
+            })));
+      
+          circles.enter().append("circle")
+            .attr("class", "important-circle")
+            .attr("cx", d => x(d.date))
+            .attr("cy", d => y(d.cases))
+            .attr("r", 5)
+            .attr("fill", "red")
+            .attr("stroke", "black")
+            .on("mouseover", function(event, d) {
+              d3.select(this)
+                .transition()
+                .duration(100)
+                .attr("r", 8);
+              // Tooltip or alert can be added here to show the event detail
+              console.log(d.event);
+            })
+            .on("mouseout", function() {
+              d3.select(this)
+                .transition()
+                .duration(100)
+                .attr("r", 5);
+            });
+      
+          circles.exit().remove();
+        }
+      }      
 
-    svg.append("g")
-      .call(d3.axisLeft(y));
+    function drillDown(country) {
+      selectedCountry = country;
+      const countryData = filteredData.filter(d => d.country === country);
+      const importantEvents = importantDates[country] || [];
+      updateChart(countryData, importantEvents);
+    }
 
-    const countryData = countries.map(country => filteredData.filter(d => d.country === country));
+    function resetChart() {
+      selectedCountry = null;
+      updateChart(filteredData);
+      svg.selectAll(".line")
+        .style("opacity", 0.6);
+      svg.selectAll(".legend")
+        .style("opacity", 0.6);
+    }
 
-    // Draw the lines
-    const lines = svg.selectAll(".line")
-      .data(countryData)
-      .enter().append("path")
-      .attr("class", "line")
-      .attr("d", line)
-      .style("stroke", d => color(d[0].country))
-      .style("opacity", 0.6) // Set initial opacity
-      .style("stroke-width", 15) // Set stroke width
-      .attr("data-country", d => d[0].country); // Add a data attribute for country
+    updateChart(filteredData);
 
-    // Hover interaction for lines
-    lines.on("mouseover", function() {
-        d3.select(this)
-          .transition()
-          .duration(200)
-          .style("opacity", 1);
-      })
-      .on("mouseout", function() {
-        d3.select(this)
-          .transition()
-          .duration(200)
-          .style("opacity", 0.6);
-      });
-
-    // Legend Panel
     const legendPanel = svg.append("g")
       .attr("transform", `translate(${width + 10}, 0)`);
 
@@ -83,36 +175,34 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
       .attr("rx", 5)
       .attr("ry", 5);
 
-    // Legend Items
     const legend = legendPanel.selectAll(".legend")
       .data(countries)
       .enter().append("g")
       .attr("class", "legend")
       .attr("transform", (d, i) => `translate(0,${i * 20 + 5})`)
-      .style("opacity", 0.6) // Set initial opacity for legend entries
-      .on("mouseover", function(event, d) {
-        // Increase opacity for the legend item and corresponding line
-        d3.select(this)
-          .transition()
-          .duration(200)
-          .style("opacity", 1);
-        svg.selectAll(".line")
-          .filter(lineData => lineData[0].country === d)
-          .transition()
-          .duration(200)
-          .style("opacity", 1);
+      .style("opacity", 0.6)
+      .on("mouseover", function() {
+        if (selectedCountry === null) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style("opacity", 1);
+        }
       })
-      .on("mouseout", function(event, d) {
-        // Revert the opacity of the legend item and corresponding line
-        d3.select(this)
-          .transition()
-          .duration(200)
-          .style("opacity", 0.6);
-        svg.selectAll(".line")
-          .filter(lineData => lineData[0].country === d)
-          .transition()
-          .duration(200)
-          .style("opacity", 0.6);
+      .on("mouseout", function() {
+        if (selectedCountry === null) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .style("opacity", 0.6);
+        }
+      })
+      .on("click", function(event, d) {
+        if (selectedCountry === d) {
+          resetChart();
+        } else {
+          drillDown(d);
+        }
       });
 
     legend.append("rect")
