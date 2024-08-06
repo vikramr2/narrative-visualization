@@ -120,6 +120,7 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
       svg.selectAll(".important-circle").remove();
 
       // Draw circles for important dates if any
+      // Draw circles for important dates if any
       if (selectedCountry !== null && importantEvents.length > 0) {
         const circles = svg.selectAll(".important-circle")
           .data(importantEvents.map(e => ({
@@ -127,7 +128,7 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
             cases: data.find(d => d.date.getTime() === parseDate(e.date).getTime())?.cases || 0,
             event: e.event
           })));
-
+    
         circles.enter().append("circle")
           .attr("class", "important-circle")
           .attr("cx", d => x(d.date))
@@ -140,18 +141,46 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
               .transition()
               .duration(100)
               .attr("r", 8);
-            console.log(d.event);  // Log or display tooltip with event details
           })
-          .on("mouseout", function() {
-            d3.select(this)
+          .on("mouseout", function(d, i, nodes) {
+            if (!d3.select(nodes[i]).classed("clicked")) {
+              d3.select(this)
+                .transition()
+                .duration(100)
+                .attr("r", 5);
+            }
+          })
+          .on("click", function(event, d) {
+            const circle = d3.select(this);
+            const isActive = circle.classed("clicked");
+    
+            // Reset all circles to normal size and remove 'clicked' class
+            svg.selectAll(".important-circle")
+              .classed("clicked", false)
               .transition()
               .duration(100)
               .attr("r", 5);
+    
+            if (isActive) {
+              // If the clicked circle was already active, deactivate it
+              const drillDownText = `Currently showing the curve of ${selectedCountry}. Click on a red circle to show the corresponding event in the timeline.`;
+              updateDynamicText(drillDownText);
+            } else {
+              // Enlarge clicked circle and mark it as clicked
+              circle
+                .classed("clicked", true)
+                .transition()
+                .duration(100)
+                .attr("r", 8);
+    
+              // Update dynamic text with the event description
+              updateDynamicText(`Event: ${d.event}`);
+            }
           })
           .transition()
           .duration(1000)
           .attr("r", 5);
-
+    
         circles.exit().remove();
       }
     }
