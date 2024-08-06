@@ -49,7 +49,21 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
       .enter().append("path")
       .attr("class", "line")
       .attr("d", line)
-      .style("stroke", d => color(d[0].country));
+      .style("stroke", d => color(d[0].country))
+      .style("opacity", 0.4) // Set initial opacity
+      .style("stroke-width", 15) // Increase stroke width
+      .on("mouseover", function() {
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .style("opacity", 1);
+      })
+      .on("mouseout", function() {
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .style("opacity", 0.4);
+      });
 
     // Legend Panel
     const legendPanel = svg.append("g")
