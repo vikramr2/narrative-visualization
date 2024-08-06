@@ -21,18 +21,18 @@ const svg = d3.select("#chart").append("svg")
 const importantDates = {
   "US": [
     { date: "03/13/20", event: "National Emergency Declaration" },
-    { date: "04/03/20", event: "CDC Recommends Masks" },
-    { date: "12/11/20", event: "Pfizer Vaccine EUA" }
+    { date: "12/11/20", event: "Pfizer Vaccine EUA" },
+    { date: "01/01/22", event: "Omicron variant hits US"}
   ],
   "China": [
-    { date: "01/23/20", event: "Wuhan Lockdown" },
     { date: "04/08/20", event: "Wuhan Reopens" },
-    { date: "12/31/20", event: "Vaccination Rollout" }
+    { date: "02/20/22", event: "Omicron outbreak in Shanghai"},
+    { date: "11/01/22", event: "China lifts zero-COVID policies" }
   ],
   "Japan": [
-    { date: "04/07/20", event: "State of Emergency" },
-    { date: "05/25/20", event: "End of State of Emergency" },
-    { date: "12/14/20", event: "Vaccination Approval" }
+    { date: "12/14/20", event: "Vaccination Approval" },
+    { date: "01/15/22", event: "BA.5 Omicron variant hits Japan" },
+    { date: "10/11/22", event: "Japan lifts COVID-19 restrictions and opens to tourists" }
   ]
 };
 
