@@ -54,17 +54,25 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
     function updateChart(data, importantEvents = []) {
         data.sort((a, b) => a.date - b.date);
       
+        // Update scales with transition
         x.domain(d3.extent(data, d => d.date));
         y.domain([0, d3.max(data, d => d.cases)]);
       
+        // Update axes with transition
         svg.selectAll(".x-axis").remove();
         svg.selectAll(".y-axis").remove();
+        
         svg.append("g")
           .attr("transform", `translate(0,${height})`)
           .attr("class", "x-axis")
+          .transition()
+          .duration(1000)
           .call(d3.axisBottom(x));
+      
         svg.append("g")
           .attr("class", "y-axis")
+          .transition()
+          .duration(1000)
           .call(d3.axisLeft(y));
       
         const lines = svg.selectAll(".line")
@@ -73,6 +81,8 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
         lines.enter().append("path")
           .attr("class", "line")
           .merge(lines)
+          .transition()  // Apply transition to lines
+          .duration(1000)
           .attr("d", line)
           .style("stroke", d => d.length ? color(d[0].country) : null)
           .style("opacity", d => (selectedCountry === null || (d.length && selectedCountry === d[0].country)) ? 0.6 : 0)
@@ -122,7 +132,7 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
             .attr("class", "important-circle")
             .attr("cx", d => x(d.date))
             .attr("cy", d => y(d.cases))
-            .attr("r", 5)
+            .attr("r", 0)
             .attr("fill", "red")
             .attr("stroke", "black")
             .on("mouseover", function(event, d) {
@@ -130,19 +140,21 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
                 .transition()
                 .duration(100)
                 .attr("r", 8);
-              // Tooltip or alert can be added here to show the event detail
-              console.log(d.event);
+              console.log(d.event);  // Log or display tooltip with event details
             })
             .on("mouseout", function() {
               d3.select(this)
                 .transition()
                 .duration(100)
                 .attr("r", 5);
-            });
+            })
+            .transition()
+            .duration(1000)
+            .attr("r", 5);
       
           circles.exit().remove();
         }
-      }      
+      }       
 
     function drillDown(country) {
       selectedCountry = country;
