@@ -52,118 +52,122 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
     let selectedCountry = null;
 
     function updateChart(data, importantEvents = []) {
-        data.sort((a, b) => a.date - b.date);
+      data.sort((a, b) => a.date - b.date);
+
+      // Update scales with transition
+      x.domain(d3.extent(data, d => d.date));
+      y.domain([0, d3.max(data, d => d.cases)]);
+
+      // Update axes with transition
+      svg.selectAll(".x-axis").remove();
+      svg.selectAll(".y-axis").remove();
       
-        // Update scales with transition
-        x.domain(d3.extent(data, d => d.date));
-        y.domain([0, d3.max(data, d => d.cases)]);
-      
-        // Update axes with transition
-        svg.selectAll(".x-axis").remove();
-        svg.selectAll(".y-axis").remove();
-        
-        svg.append("g")
-          .attr("transform", `translate(0,${height})`)
-          .attr("class", "x-axis")
-          .transition()
-          .duration(1000)
-          .call(d3.axisBottom(x));
-      
-        svg.append("g")
-          .attr("class", "y-axis")
-          .transition()
-          .duration(1000)
-          .call(d3.axisLeft(y));
-      
-        const lines = svg.selectAll(".line")
-          .data(countries.map(country => data.filter(d => d.country === country)));
-      
-        lines.enter().append("path")
-          .attr("class", "line")
-          .merge(lines)
-          .transition()  // Apply transition to lines
-          .duration(1000)
-          .attr("d", line)
-          .style("stroke", d => d.length ? color(d[0].country) : null)
-          .style("opacity", d => (selectedCountry === null || (d.length && selectedCountry === d[0].country)) ? 0.6 : 0)
-          .style("stroke-width", 15)
-          .attr("data-country", d => d.length ? d[0].country : null);
-      
-        lines.exit().remove();
-      
-        svg.selectAll(".line")
-          .on("mouseover", function() {
-            if (selectedCountry === null) {
-              d3.select(this)
-                .transition()
-                .duration(200)
-                .style("opacity", 1);
-            }
+      svg.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .attr("class", "x-axis")
+        .transition()
+        .duration(1000)
+        .call(d3.axisBottom(x));
+
+      svg.append("g")
+        .attr("class", "y-axis")
+        .transition()
+        .duration(1000)
+        .call(d3.axisLeft(y));
+
+      const lines = svg.selectAll(".line")
+        .data(countries.map(country => data.filter(d => d.country === country)));
+
+      lines.enter().append("path")
+        .attr("class", "line")
+        .merge(lines)
+        .transition()  // Apply transition to lines
+        .duration(1000)
+        .attr("d", line)
+        .style("stroke", d => d.length ? color(d[0].country) : null)
+        .style("opacity", d => (selectedCountry === null || (d.length && selectedCountry === d[0].country)) ? 0.6 : 0)
+        .style("stroke-width", 15)
+        .attr("data-country", d => d.length ? d[0].country : null);
+
+      lines.exit().remove();
+
+      svg.selectAll(".line")
+        .on("mouseover", function() {
+          if (selectedCountry === null) {
+            d3.select(this)
+              .transition()
+              .duration(200)
+              .style("opacity", 1);
+          }
+        })
+        .on("mouseout", function() {
+          if (selectedCountry === null) {
+            d3.select(this)
+              .transition()
+              .duration(200)
+              .style("opacity", 0.6);
+          }
+        })
+        .on("click", function(event, d) {
+          if (selectedCountry === d[0].country) {
+            resetChart();
+          } else {
+            drillDown(d[0].country);
+          }
+        });
+
+      // Remove existing circles
+      svg.selectAll(".important-circle").remove();
+
+      // Draw circles for important dates if any
+      if (selectedCountry !== null && importantEvents.length > 0) {
+        const circles = svg.selectAll(".important-circle")
+          .data(importantEvents.map(e => ({
+            date: parseDate(e.date),
+            cases: data.find(d => d.date.getTime() === parseDate(e.date).getTime())?.cases || 0,
+            event: e.event
+          })));
+
+        circles.enter().append("circle")
+          .attr("class", "important-circle")
+          .attr("cx", d => x(d.date))
+          .attr("cy", d => y(d.cases))
+          .attr("r", 0)
+          .attr("fill", "red")
+          .attr("stroke", "black")
+          .on("mouseover", function(event, d) {
+            d3.select(this)
+              .transition()
+              .duration(100)
+              .attr("r", 8);
+            console.log(d.event);  // Log or display tooltip with event details
           })
           .on("mouseout", function() {
-            if (selectedCountry === null) {
-              d3.select(this)
-                .transition()
-                .duration(200)
-                .style("opacity", 0.6);
-            }
+            d3.select(this)
+              .transition()
+              .duration(100)
+              .attr("r", 5);
           })
-          .on("click", function(event, d) {
-            if (selectedCountry === d[0].country) {
-              resetChart();
-            } else {
-              drillDown(d[0].country);
-            }
-          });
-      
-        // Remove existing circles
-        svg.selectAll(".important-circle").remove();
-      
-        // Draw circles for important dates if any
-        if (selectedCountry !== null && importantEvents.length > 0) {
-          const circles = svg.selectAll(".important-circle")
-            .data(importantEvents.map(e => ({
-              date: parseDate(e.date),
-              cases: data.find(d => d.date.getTime() === parseDate(e.date).getTime())?.cases || 0,
-              event: e.event
-            })));
-      
-          circles.enter().append("circle")
-            .attr("class", "important-circle")
-            .attr("cx", d => x(d.date))
-            .attr("cy", d => y(d.cases))
-            .attr("r", 0)
-            .attr("fill", "red")
-            .attr("stroke", "black")
-            .on("mouseover", function(event, d) {
-              d3.select(this)
-                .transition()
-                .duration(100)
-                .attr("r", 8);
-              console.log(d.event);  // Log or display tooltip with event details
-            })
-            .on("mouseout", function() {
-              d3.select(this)
-                .transition()
-                .duration(100)
-                .attr("r", 5);
-            })
-            .transition()
-            .duration(1000)
-            .attr("r", 5);
-      
-          circles.exit().remove();
-        }
-      }       
+          .transition()
+          .duration(1000)
+          .attr("r", 5);
+
+        circles.exit().remove();
+      }
+    }
 
     function drillDown(country) {
       selectedCountry = country;
       const countryData = filteredData.filter(d => d.country === country);
       const importantEvents = importantDates[country] || [];
       updateChart(countryData, importantEvents);
+
+      const drillDownText = `Currently showing the curve of ${country}. Click on a red circle to show the corresponding event in the timeline.`;
+      updateDynamicText(drillDownText);
     }
 
     function resetChart() {
+      updateDynamicText(welcomeText);
       selectedCountry = null;
       updateChart(filteredData);
       svg.selectAll(".line")
@@ -229,5 +233,58 @@ d3.csv("data/time_series_covid19_confirmed_global_processed.csv", d3.autoType)
       .attr("dy", ".35em")
       .style("text-anchor", "start")
       .text(d => d);
+
+    // Add welcome message box below the legend panel
+    const welcomeText = "Welcome to the visualization, click on a curve or legend item to drill down into a single country's COVID data. Click on the curve or legend item again to return to normal.";
+
+    // Define text wrapping function
+    function wrapText(text, width) {
+        text.each(function() {
+            var text = d3.select(this),
+            words = text.text().split(/\s+/).reverse(),
+            word,
+            line = [],
+            lineNumber = 0,
+            lineHeight = 1.1, // ems
+            y = text.attr("y"),
+            dy = parseFloat(text.attr("dy")),
+            tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+
+            while (word = words.pop()) {
+            line.push(word);
+            tspan.text(line.join(" "));
+            if (tspan.node().getComputedTextLength() > width) {
+                line.pop();
+                tspan.text(line.join(" "));
+                line = [word];
+                tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+            }
+            }
+        });
+    }
+
+    // Function to update dynamic text
+    function updateDynamicText(message) {
+        d3.select("#dynamic-text")
+        .text(message)
+        .call(wrapText, legendPanelWidth);
+    }
+
+    // Add the welcome message
+    const legendPanelWidth = 130; // Width of the legend panel
+    const legendPanelX = width + 10; // Adjust based on the actual positioning of the legend panel
+    const legendPanelY = countries.length * 20 + 20; // Positioning based on legend items
+
+    legendPanel.append("text")
+    .attr("id", "dynamic-text")
+    .attr("x", legendPanelX)
+    .attr("y", legendPanelY + 50) // Space between the legend and the welcome text
+    .attr("dy", "1em")
+    .attr("text-anchor", "start")
+    .attr("class", "welcome-text")
+    .style("font-size", "14px")
+    .style("fill", "#333")
+    .text(welcomeText)
+    .call(wrapText, legendPanelWidth); // Wrap text to fit within legend panel width
   })
   .catch(error => console.error(error));
